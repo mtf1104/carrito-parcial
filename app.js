@@ -19,26 +19,24 @@ app.use(session({
     cookie: { secure: false } // false para http localhost
 }));
 
-// --- 2. BASE DE DATOS ---
+// --- 2. BASE DE DATOS (Conexión a TiDB Cloud) ---
 const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'carrito_compras'
+    host: 'gateway01.us-east-1.prod.aws.tidbcloud.com',
+    port: 4000,
+    user: '3TfW3piDLzUBEx7.root',
+    password: 'Qgj6gqapVgo35kTc',
+    database: 'carrito_compras',
+    ssl: {
+        rejectUnauthorized: true
+    }
 });
 
 db.connect((err) => {
-    if (err) throw err;
-    console.log('Conectado a MySQL');
-});
-
-// Middleware para pasar usuario y carrito a todas las vistas
-app.use((req, res, next) => {
-    res.locals.user = req.session.user || null;
-    res.locals.cart = req.session.cart || [];
-    // Calcular total del carrito
-    res.locals.cartTotal = res.locals.cart.reduce((total, item) => total + (item.price * item.quantity), 0);
-    next();
+    if (err) {
+        console.error('Error conectando a la base de datos:', err);
+        return;
+    }
+    console.log('¡Conectado a TiDB Cloud exitosamente!');
 });
 
 // --- 3. RUTAS ---
@@ -200,5 +198,6 @@ app.get('/invoice/:id', (req, res) => {
         });
     });
 });
+
 
 app.listen(3000, () => console.log('Servidor en http://localhost:3000'));
