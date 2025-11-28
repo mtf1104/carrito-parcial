@@ -24,7 +24,7 @@ const db = mysql.createConnection({
     host: 'gateway01.us-east-1.prod.aws.tidbcloud.com',
     port: 4000,
     user: '3TfW3piDLzUBEx7.root',
-    password: 'Qgj6gqapVgo35kTc',
+    password: 'qnYoAgJQEivo7wcn',
     database: 'carrito_compras',
     ssl: {
         rejectUnauthorized: true
@@ -201,3 +201,4 @@ app.get('/invoice/:id', (req, res) => {
 
 
 app.listen(3000, () => console.log('Servidor en http://localhost:3000'));
+
