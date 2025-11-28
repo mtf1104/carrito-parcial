@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TechZone - Catálogo</title>
+    <!-- Usamos Bootstrap via CDN para que se vea bien rapido -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+        <div class="container">
+            <a class="navbar-brand" href="/">TechZone 🛒</a>
+            <div class="d-flex">
+                <a href="/cart" class="btn btn-outline-warning me-2">
+                    Carrito (<%= cart.length %>) - $<%= cartTotal %>
+                </a>
+                <% if(user) { %>
+                    <a href="/history" class="btn btn-outline-info me-2">Mis Compras</a>
+                    <span class="navbar-text text-white me-2">Hola, <%= user.name %></span>
+                    <a href="/logout" class="btn btn-danger btn-sm">Salir</a>
+                <% } else { %>
+                    <a href="/login" class="btn btn-primary">Login / Registro</a>
+                <% } %>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Productos -->
+    <div class="container mt-4">
+        <h2 class="mb-4">Nuestros Productos</h2>
+        <div class="row">
+            <% products.forEach(p => { %>
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100 shadow-sm">
+                        <img src="<%= p.image %>" class="card-img-top" alt="...">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title"><%= p.name %></h5>
+                            <p class="card-text text-muted"><%= p.description %></p>
+                            <h4 class="text-primary mt-auto">$<%= p.price %></h4>
+                            
+                            <form action="/add-to-cart" method="POST" class="mt-2">
+                                <input type="hidden" name="id" value="<%= p.id %>">
+                                <input type="hidden" name="name" value="<%= p.name %>">
+                                <input type="hidden" name="price" value="<%= p.price %>">
+                                <input type="hidden" name="image" value="<%= p.image %>">
+                                
+                                <div class="input-group mb-2">
+                                    <span class="input-group-text">Cant:</span>
+                                    <input type="number" name="quantity" value="1" min="1" class="form-control">
+                                </div>
+                                <button type="submit" class="btn btn-success w-100">Agregar al Carrito</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    </div>
+    
+    <footer class="bg-dark text-white text-center p-3 mt-4">
+        Proyecto 2 Parcial - Carrito de Compras
+    </footer>
+</body>
+</html>

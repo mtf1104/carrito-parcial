@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mis Compras</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h2>Historial de Compras de <%= user.name %></h2>
+        <a href="/" class="btn btn-secondary mb-3">Volver a la tienda</a>
+
+        <% if(orders.length === 0) { %>
+            <div class="alert alert-warning">Aún no has realizado compras.</div>
+        <% } else { %>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th># Orden</th>
+                        <th>Fecha</th>
+                        <th>Total</th>
+                        <th>Comprobante</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% orders.forEach(order => { %>
+                        <tr>
+                            <td><%= order.id %></td>
+                            <td><%= new Date(order.date).toLocaleString() %></td>
+                            <td>$<%= order.total %></td>
+                            <td>
+                                <a href="/invoice/<%= order.id %>" class="btn btn-primary btn-sm" target="_blank">
+                                    📄 Descargar PDF
+                                </a>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        <% } %>
+    </div>
+</body>
+</html>
