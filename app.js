@@ -177,14 +177,14 @@ app.get('/invoice/:id', (req, res) => {
     const orderId = req.params.id;
 
     const sqlOrder = 'SELECT * FROM orders WHERE id = ? AND user_id = ?';
-    const sqlDetails = SELECT od.*, p.name FROM order_details od JOIN products p ON od.product_id = p.id WHERE od.order_id = ?;
+    const sqlDetails = `SELECT od.*, p.name FROM order_details od JOIN products p ON od.product_id = p.id WHERE od.order_id = ?`;
 
     db.query(sqlOrder, [orderId, req.session.user.id], (err, orderResult) => {
         if (orderResult.length === 0) return res.send("Orden no encontrada");
         
         db.query(sqlDetails, [orderId], (err, detailsResult) => {
             const doc = new PDFDocument();
-            const filename = Ticket_Orden_${orderId}.pdf;
+            const filename = `Ticket_Orden_${orderId}.pdf`;
 
             res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"');
             res.setHeader('Content-type', 'application/pdf');
@@ -193,14 +193,14 @@ app.get('/invoice/:id', (req, res) => {
 
             doc.fontSize(25).text('TechZone - Comprobante', { align: 'center' });
             doc.moveDown();
-            doc.fontSize(12).text(Cliente: ${req.session.user.name});
-            doc.text(Fecha: ${new Date(orderResult[0].date).toLocaleString()});
-            doc.text(Total: $${orderResult[0].total});
+            doc.fontSize(12).text(`Cliente: ${req.session.user.name}`);
+            doc.text(`Fecha: ${new Date(orderResult[0].date).toLocaleString()}`);
+            doc.text(`Total: $${orderResult[0].total}`);
             doc.moveDown();
             doc.text('-------------------------------------------------------');
             
             detailsResult.forEach(item => {
-                doc.text(${item.quantity} x ${item.name} - $${item.price});
+                doc.text(`${item.quantity} x ${item.name} - $${item.price}`);
             });
             
             doc.end();
@@ -210,4 +210,4 @@ app.get('/invoice/:id', (req, res) => {
 
 // PUERTO DINÁMICO (Para Render)
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(Servidor corriendo en puerto ${PORT}));
+app.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
