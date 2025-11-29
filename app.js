@@ -1,199 +1,199 @@
-Const express = require(‘express’);
-Const mysql = require(‘mysql2’);
-Const session = require(‘express-session’);
-Const path = require(‘path’);
-Const PDFDocument = require(‘pdfkit’);
+const express = require(‘express’);
+const mysql = require(‘mysql2’);
+const session = require(‘express-session’);
+const path = require(‘path’);
+const pdfdocument = require(‘pdfkit’);
 
-Const app = express();
+const app = express();
 
-// --- 1. CONFIGURACIÓN ---
-App.set(‘view engine’, ‘ejs’);
-App.use(express.urlencoded({ extended: true }));
-App.use(express.static(‘public’));
+// --- 1. configuración ---
+app.set(‘view engine’, ‘ejs’);
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(‘public’));
 
-// Configuración de la sesión
-App.use(session({
-    Secret: ‘mi_secreto_super_seguro’,
-    Resave: false,
-    saveUninitialized: true,
+// configuración de la sesión
+app.use(session({
+    secret: ‘mi_secreto_super_seguro’,
+    resave: false,
+    saveuninitialized: true,
     cookie: { secure: false } 
 }));
 
-// --- ¡AQUÍ ESTABA EL ERROR! FALTABA ESTE BLOQUE ---
-// Middleware Global: Esto asegura que el carrito SIEMPRE exista
-App.use((req, res, next) => {
-    // 1. Si no existe el carrito, lo creamos vacío
-    If (¡req.session.cart) {
-        Req.session.cart = [];
+// --- ¡aquí estaba el error! faltaba este bloque ---
+// middleware global: esto asegura que el carrito siempre exista
+app.use((req, res, next) => {
+    // 1. si no existe el carrito, lo creamos vacío
+    if (¡req.session.cart) {
+        req.session.cart = [];
     }
 
-    // 2. Pasamos el usuario y el carrito a TODAS las vistas EJS
-    Res.locals.cart = req.session.cart;
-    Res.locals.user = req.session.user || null;
+    // 2. pasamos el usuario y el carrito a todas las vistas ejs
+    res.locals.cart = req.session.cart;
+    res.locals.user = req.session.user || null;
 
-    // 3. Calculamos el total automáticamente
-    Res.locals.cartTotal = req.session.cart.reduce((total, item) => {
-        Return total + (item.price * item.quantity);
+    // 3. calculamos el total automáticamente
+    res.locals.carttotal = req.session.cart.reduce((total, item) => {
+        return total + (item.price * item.quantity);
     }, 0);
 
-    // 4. Continuamos
-    Next();
+    // 4. continuamos
+    next();
 });
 // ----------------------------------------------------
 
-// --- 2. BASE DE DATOS (TiDB Cloud) ---
-Const db = mysql.createConnection({
-    Host: ‘gateway01.us-east-1.prod.aws.tidbcloud.com’,
-    Port: 4000,
-    User: ‘3TfW3piDLzUBEx7.root’,
-    Password: ‘qnYoAgJQEivo7wcn’,
-    Database: ‘carrito_compras’,
-    Ssl: { rejectUnauthorized: true }
+// --- 2. base de datos (tidb cloud) ---
+const db = mysql.createconnection({
+    host: ‘gateway01.us-east-1.prod.aws.tidbcloud.com’,
+    port: 4000,
+    user: ‘3tfw3pidlzubex7.root’,
+    password: ‘qnyoagjqeivo7wcn’,
+    database: ‘carrito_compras’,
+    ssl: { rejectunauthorized: true }
 });
 
-Db.connect((err) => {
-    If (err) {
-        Console.error(‘Error conectando a la base de datos:’, err);
-        Return;
+db.connect((err) => {
+    if (err) {
+        console.error(‘error conectando a la base de datos:’, err);
+        return;
     }
-    Console.log(‘¡Conectado a TiDB Cloud exitosamente!’);
+    console.log(‘¡conectado a tidb cloud exitosamente!’);
 });
 
-// --- 3. RUTAS ---
+// --- 3. rutas ---
 
-// INICIO – Ver Productos
-App.get(‘/’, (req, res) => {
-    Db.query(‘SELECT * FROM products’, (err, results) => {
-        If (err) throw err;
-        // Ya no necesitamos pasar {products: results, cart: …} 
+// inicio – ver productos
+app.get(‘/’, (req, res) => {
+    db.query(‘select * from products’, (err, results) => {
+        if (err) throw err;
+        // ya no necesitamos pasar {products: results, cart: …} 
         // porque el middleware de arriba ya se encarga del carrito.
-        Res.render(‘index’, { products: results });
+        res.render(‘index’, { products: results });
     });
 });
 
-// AUTH – Login y Registro
-App.get(‘/login’, (req, res) => res.render(‘login’, { message: null }));
+// auth – login y registro
+app.get(‘/login’, (req, res) => res.render(‘login’, { message: null }));
 
-App.post(‘/register’, (req, res) => {
-    Const { name, email, password } = req.body;
-    Db.query(‘INSERT INTO users SET ¿’, { name, email, password }, (err) => {
-        If (err) return res.render(‘login’, { message: ‘Error al registrar (quizá el correo ya existe)’ });
-        Res.render(‘login’, { message: ‘Registro exitoso, por favor inicia sesión’ });
+app.post(‘/register’, (req, res) => {
+    const { name, email, password } = req.body;
+    db.query(‘insert into users set ¿’, { name, email, password }, (err) => {
+        if (err) return res.render(‘login’, { message: ‘error al registrar (quizá el correo ya existe)’ });
+        res.render(‘login’, { message: ‘registro exitoso, por favor inicia sesión’ });
     });
 });
 
-App.post(‘/login’, (req, res) => {
-    Const { email, password } = req.body;
-    Db.query(‘SELECT * FROM users WHERE email = ¿ AND password = ¿’, [email, password], (err, results) => {
-        If (results.length > 0) {
-            Req.session.user = results[0];
-            Res.redirect(‘/’);
+app.post(‘/login’, (req, res) => {
+    const { email, password } = req.body;
+    db.query(‘select * from users where email = ¿ and password = ¿’, [email, password], (err, results) => {
+        if (results.length > 0) {
+            req.session.user = results[0];
+            res.redirect(‘/’);
         } else {
-            Res.render(‘login’, { message: ‘Credenciales incorrectas’ });
+            res.render(‘login’, { message: ‘credenciales incorrectas’ });
         }
     });
 });
 
-App.get(‘/logout’, (req, res) => {
-    Req.session.destroy();
-    Res.redirect(‘/’);
+app.get(‘/logout’, (req, res) => {
+    req.session.destroy();
+    res.redirect(‘/’);
 });
 
-// CARRITO – Lógica
-App.post(‘/add-to-cart’, (req, res) => {
-    Const { id, name, price, image } = req.body;
-    Const quantity = parseInt(req.body.quantity);
+// carrito – lógica
+app.post(‘/add-to-cart’, (req, res) => {
+    const { id, name, price, image } = req.body;
+    const quantity = parseint(req.body.quantity);
 
-    // El middleware ya creó el array, así que esto es seguro
-    Const existingItem = req.session.cart.find(item => item.id == id);
-    If (existingItem) {
-        existingItem.quantity += quantity;
+    // el middleware ya creó el array, así que esto es seguro
+    const existingitem = req.session.cart.find(item => item.id == id);
+    if (existingitem) {
+        existingitem.quantity += quantity;
     } else {
-        Req.session.cart.push({ id, name, price: parseFloat(price), image, quantity });
+        req.session.cart.push({ id, name, price: parsefloat(price), image, quantity });
     }
-    Res.redirect(‘/’);
+    res.redirect(‘/’);
 });
 
-App.get(‘/cart’, (req, res) => {
-    Res.render(‘cart’);
+app.get(‘/cart’, (req, res) => {
+    res.render(‘cart’);
 });
 
-App.post(‘/update-cart’, (req, res) => {
-    Const { id, action } = req.body;
-    Const cart = req.session.cart;
-    Const itemIndex = cart.findIndex(item => item.id == id);
+app.post(‘/update-cart’, (req, res) => {
+    const { id, action } = req.body;
+    const cart = req.session.cart;
+    const itemindex = cart.findindex(item => item.id == id);
 
-    If (itemIndex > -1) {
-        If (action === ‘increase’) cart[itemIndex].quantity++;
-        If (action === ‘decrease’) {
-            Cart[itemIndex].quantity--;
-            If (cart[itemIndex].quantity <= 0) cart.splice(itemIndex, 1);
+    if (itemindex > -1) {
+        if (action === ‘increase’) cart[itemindex].quantity++;
+        if (action === ‘decrease’) {
+            cart[itemindex].quantity--;
+            if (cart[itemindex].quantity <= 0) cart.splice(itemindex, 1);
         }
-        If (action === ‘remove’) cart.splice(itemIndex, 1);
+        if (action === ‘remove’) cart.splice(itemindex, 1);
     }
-    Res.redirect(‘/cart’);
+    res.redirect(‘/cart’);
 });
 
-// CHECKOUT – Realizar Compra
-App.post(‘/checkout’, (req, res) => {
-    If (¡req.session.user) return res.redirect(‘/login’);
-    If (req.session.cart.length === 0) return res.redirect(‘/’);
+// checkout – realizar compra
+app.post(‘/checkout’, (req, res) => {
+    if (¡req.session.user) return res.redirect(‘/login’);
+    if (req.session.cart.length === 0) return res.redirect(‘/’);
 
-    Const userId = req.session.user.id;
-    Const total = req.session.cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    const userid = req.session.user.id;
+    const total = req.session.cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
-    // 1. Guardar Orden
-    Db.query(‘INSERT INTO orders (user_id, total) VALUES (¿, ¿)’, [userId, total], (err, result) => {
-        If (err) throw err;
-        Const orderId = result.insertId;
+    // 1. guardar orden
+    db.query(‘insert into orders (user_id, total) values (¿, ¿)’, [userid, total], (err, result) => {
+        if (err) throw err;
+        const orderid = result.insertid;
 
-        // 2. Guardar Detalles
-        Const cartItems = req.session.cart.map(item => [orderId, item.id, item.quantity, item.price]);
-        Db.query(‘INSERT INTO order_details (order_id, product_id, quantity, price) VALUES ¿’, [cartItems], (err) => {
-            If (err) throw err;
-            Req.session.cart = []; // Vaciar carrito
-            Res.redirect(‘/history’); 
+        // 2. guardar detalles
+        const cartitems = req.session.cart.map(item => [orderid, item.id, item.quantity, item.price]);
+        db.query(‘insert into order_details (order_id, product_id, quantity, price) values ¿’, [cartitems], (err) => {
+            if (err) throw err;
+            req.session.cart = []; // vaciar carrito
+            res.redirect(‘/history’); 
         });
     });
 });
 
-// HISTORIAL
-App.get(‘/history’, (req, res) => {
-    If (¡req.session.user) return res.redirect(‘/login’);
-    Const sql = ‘SELECT * FROM orders WHERE user_id = ¿ ORDER BY date DESC’;
-    Db.query(sql, [req.session.user.id], (err, orders) => {
-        Res.render(‘history’, { orders });
+// historial
+app.get(‘/history’, (req, res) => {
+    if (¡req.session.user) return res.redirect(‘/login’);
+    const sql = ‘select * from orders where user_id = ¿ order by date desc’;
+    db.query(sql, [req.session.user.id], (err, orders) => {
+        res.render(‘history’, { orders });
     });
 });
 
-// GENERAR PDF
-App.get(‘/invoice/:id’, (req, res) => {
-    If (¡req.session.user) return res.redirect(‘/login’);
-    Const orderId = req.params.id;
-    Const sqlOrder = ‘SELECT * FROM orders WHERE id = ¿ AND user_id = ¿’;
-    Const sqlDetails = `SELECT od.*, p.name FROM order_details od JOIN products p ON od.product_id = p.id WHERE od.order_id = ¿`;
+// generar pdf
+app.get(‘/invoice/:id’, (req, res) => {
+    if (¡req.session.user) return res.redirect(‘/login’);
+    const orderid = req.params.id;
+    const sqlorder = ‘select * from orders where id = ¿ and user_id = ¿’;
+    const sqldetails = `select od.*, p.name from order_details od join products p on od.product_id = p.id where od.order_id = ¿`;
 
-    Db.query(sqlOrder, [orderId, req.session.user.id], (err, orderResult) => {
-        If (orderResult.length === 0) return res.send(“Orden no encontrada”);
-        Db.query(sqlDetails, [orderId], (err, detailsResult) => {
-            Const doc = new PDFDocument();
-            Const filename = `Ticket_Orden_${orderId}.pdf`;
-            Res.setHeader(‘Content-disposition’, ‘attachment; filename=”’ + filename + ‘”’);
-            Res.setHeader(‘Content-type’, ‘application/pdf’);
-            Doc.pipe(res);
-            Doc.fontSize(25).text(‘TechZone – Comprobante’, { align: ‘center’ });
-            Doc.moveDown();
-            Doc.fontSize(12).text(`Cliente: ${req.session.user.name}`);
-            Doc.text(`Total: $${orderResult[0].total}`);
-            Doc.moveDown();
-            detailsResult.forEach(item => {
+    db.query(sqlorder, [orderid, req.session.user.id], (err, orderresult) => {
+        if (orderresult.length === 0) return res.send(“orden no encontrada”);
+        db.query(sqldetails, [orderid], (err, detailsresult) => {
+            const doc = new pdfdocument();
+            const filename = `ticket_orden_${orderid}.pdf`;
+            res.setheader(‘content-disposition’, ‘attachment; filename=”’ + filename + ‘”’);
+            res.setheader(‘content-type’, ‘application/pdf’);
+            doc.pipe(res);
+            doc.fontsize(25).text(‘techzone – comprobante’, { align: ‘center’ });
+            doc.movedown();
+            doc.fontsize(12).text(`cliente: ${req.session.user.name}`);
+            doc.text(`total: $${orderresult[0].total}`);
+            doc.movedown();
+            detailsresult.foreach(item => {
                 doc.text(`${item.quantity} x ${item.name} - $${item.price}`);
             });
-            Doc.end();
+            doc.end();
         });
     });
 });
 
-// PUERTO (Importante para Render)
-Const PORT = process.env.PORT || 3000;
-App.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
+// puerto (importante para render)
+const port = process.env.port || 3000;
+app.listen(port, () => console.log(`servidor corriendo en puerto ${port}`));
