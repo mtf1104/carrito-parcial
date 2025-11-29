@@ -1,204 +1,199 @@
-const express = require('express');
-const mysql = require('mysql2');
-const session = require('express-session');
-const path = require('path');
-const PDFDocument = require('pdfkit'); // Para generar el PDF
+Const express = require(‘express’);
+Const mysql = require(‘mysql2’);
+Const session = require(‘express-session’);
+Const path = require(‘path’);
+Const PDFDocument = require(‘pdfkit’);
 
-const app = express();
+Const app = express();
 
 // --- 1. CONFIGURACIÓN ---
-app.set('view engine', 'ejs');
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
+App.set(‘view engine’, ‘ejs’);
+App.use(express.urlencoded({ extended: true }));
+App.use(express.static(‘public’));
 
-// Configuración de la sesión (Memoria del carrito y usuario)
-app.use(session({
-    secret: 'mi_secreto_super_seguro',
-    resave: false,
+// Configuración de la sesión
+App.use(session({
+    Secret: ‘mi_secreto_super_seguro’,
+    Resave: false,
     saveUninitialized: true,
-    cookie: { secure: false } // false para http localhost
+    cookie: { secure: false } 
 }));
 
-// --- 2. BASE DE DATOS (Conexión a TiDB Cloud) ---
-const db = mysql.createConnection({
-    host: 'gateway01.us-east-1.prod.aws.tidbcloud.com',
-    port: 4000,
-    user: '3TfW3piDLzUBEx7.root',
-    password: 'qnYoAgJQEivo7wcn',
-    database: 'carrito_compras',
-    ssl: {
-        rejectUnauthorized: true
+// --- ¡AQUÍ ESTABA EL ERROR! FALTABA ESTE BLOQUE ---
+// Middleware Global: Esto asegura que el carrito SIEMPRE exista
+App.use((req, res, next) => {
+    // 1. Si no existe el carrito, lo creamos vacío
+    If (¡req.session.cart) {
+        Req.session.cart = [];
     }
+
+    // 2. Pasamos el usuario y el carrito a TODAS las vistas EJS
+    Res.locals.cart = req.session.cart;
+    Res.locals.user = req.session.user || null;
+
+    // 3. Calculamos el total automáticamente
+    Res.locals.cartTotal = req.session.cart.reduce((total, item) => {
+        Return total + (item.price * item.quantity);
+    }, 0);
+
+    // 4. Continuamos
+    Next();
+});
+// ----------------------------------------------------
+
+// --- 2. BASE DE DATOS (TiDB Cloud) ---
+Const db = mysql.createConnection({
+    Host: ‘gateway01.us-east-1.prod.aws.tidbcloud.com’,
+    Port: 4000,
+    User: ‘3TfW3piDLzUBEx7.root’,
+    Password: ‘qnYoAgJQEivo7wcn’,
+    Database: ‘carrito_compras’,
+    Ssl: { rejectUnauthorized: true }
 });
 
-db.connect((err) => {
-    if (err) {
-        console.error('Error conectando a la base de datos:', err);
-        return;
+Db.connect((err) => {
+    If (err) {
+        Console.error(‘Error conectando a la base de datos:’, err);
+        Return;
     }
-    console.log('¡Conectado a TiDB Cloud exitosamente!');
+    Console.log(‘¡Conectado a TiDB Cloud exitosamente!’);
 });
 
 // --- 3. RUTAS ---
 
-// INICIO - Ver Productos
-app.get('/', (req, res) => {
-    db.query('SELECT * FROM products', (err, results) => {
-        if (err) throw err;
-        res.render('index', { products: results });
+// INICIO – Ver Productos
+App.get(‘/’, (req, res) => {
+    Db.query(‘SELECT * FROM products’, (err, results) => {
+        If (err) throw err;
+        // Ya no necesitamos pasar {products: results, cart: …} 
+        // porque el middleware de arriba ya se encarga del carrito.
+        Res.render(‘index’, { products: results });
     });
 });
 
-// AUTH - Login y Registro
-app.get('/login', (req, res) => res.render('login', { message: null }));
+// AUTH – Login y Registro
+App.get(‘/login’, (req, res) => res.render(‘login’, { message: null }));
 
-app.post('/register', (req, res) => {
-    const { name, email, password } = req.body;
-    db.query('INSERT INTO users SET ?', { name, email, password }, (err) => {
-        if (err) return res.render('login', { message: 'Error al registrar (quizá el correo ya existe)' });
-        res.render('login', { message: 'Registro exitoso, por favor inicia sesión' });
+App.post(‘/register’, (req, res) => {
+    Const { name, email, password } = req.body;
+    Db.query(‘INSERT INTO users SET ¿’, { name, email, password }, (err) => {
+        If (err) return res.render(‘login’, { message: ‘Error al registrar (quizá el correo ya existe)’ });
+        Res.render(‘login’, { message: ‘Registro exitoso, por favor inicia sesión’ });
     });
 });
 
-app.post('/login', (req, res) => {
-    const { email, password } = req.body;
-    db.query('SELECT * FROM users WHERE email = ? AND password = ?', [email, password], (err, results) => {
-        if (results.length > 0) {
-            req.session.user = results[0];
-            res.redirect('/');
+App.post(‘/login’, (req, res) => {
+    Const { email, password } = req.body;
+    Db.query(‘SELECT * FROM users WHERE email = ¿ AND password = ¿’, [email, password], (err, results) => {
+        If (results.length > 0) {
+            Req.session.user = results[0];
+            Res.redirect(‘/’);
         } else {
-            res.render('login', { message: 'Credenciales incorrectas' });
+            Res.render(‘login’, { message: ‘Credenciales incorrectas’ });
         }
     });
 });
 
-app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/');
+App.get(‘/logout’, (req, res) => {
+    Req.session.destroy();
+    Res.redirect(‘/’);
 });
 
-// CARRITO - Lógica
-app.post('/add-to-cart', (req, res) => {
-    const { id, name, price, image } = req.body;
-    const quantity = parseInt(req.body.quantity); // Cantidad que viene del input
+// CARRITO – Lógica
+App.post(‘/add-to-cart’, (req, res) => {
+    Const { id, name, price, image } = req.body;
+    Const quantity = parseInt(req.body.quantity);
 
-    if (!req.session.cart) req.session.cart = [];
-
-    const existingItem = req.session.cart.find(item => item.id == id);
-    if (existingItem) {
+    // El middleware ya creó el array, así que esto es seguro
+    Const existingItem = req.session.cart.find(item => item.id == id);
+    If (existingItem) {
         existingItem.quantity += quantity;
     } else {
-        req.session.cart.push({ id, name, price: parseFloat(price), image, quantity });
+        Req.session.cart.push({ id, name, price: parseFloat(price), image, quantity });
     }
-    res.redirect('/');
+    Res.redirect(‘/’);
 });
 
-app.get('/cart', (req, res) => {
-    res.render('cart');
+App.get(‘/cart’, (req, res) => {
+    Res.render(‘cart’);
 });
 
-app.post('/update-cart', (req, res) => {
-    const { id, action } = req.body;
-    const cart = req.session.cart;
-    const itemIndex = cart.findIndex(item => item.id == id);
+App.post(‘/update-cart’, (req, res) => {
+    Const { id, action } = req.body;
+    Const cart = req.session.cart;
+    Const itemIndex = cart.findIndex(item => item.id == id);
 
-    if (itemIndex > -1) {
-        if (action === 'increase') cart[itemIndex].quantity++;
-        if (action === 'decrease') {
-            cart[itemIndex].quantity--;
-            if (cart[itemIndex].quantity <= 0) cart.splice(itemIndex, 1);
+    If (itemIndex > -1) {
+        If (action === ‘increase’) cart[itemIndex].quantity++;
+        If (action === ‘decrease’) {
+            Cart[itemIndex].quantity--;
+            If (cart[itemIndex].quantity <= 0) cart.splice(itemIndex, 1);
         }
-        if (action === 'remove') cart.splice(itemIndex, 1);
+        If (action === ‘remove’) cart.splice(itemIndex, 1);
     }
-    res.redirect('/cart');
+    Res.redirect(‘/cart’);
 });
 
-// CHECKOUT - Realizar Compra
-app.post('/checkout', (req, res) => {
-    if (!req.session.user) return res.redirect('/login'); // Validar login
-    if (req.session.cart.length === 0) return res.redirect('/');
+// CHECKOUT – Realizar Compra
+App.post(‘/checkout’, (req, res) => {
+    If (¡req.session.user) return res.redirect(‘/login’);
+    If (req.session.cart.length === 0) return res.redirect(‘/’);
 
-    const userId = req.session.user.id;
-    const total = req.session.cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+    Const userId = req.session.user.id;
+    Const total = req.session.cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
 
     // 1. Guardar Orden
-    db.query('INSERT INTO orders (user_id, total) VALUES (?, ?)', [userId, total], (err, result) => {
-        if (err) throw err;
-        const orderId = result.insertId;
+    Db.query(‘INSERT INTO orders (user_id, total) VALUES (¿, ¿)’, [userId, total], (err, result) => {
+        If (err) throw err;
+        Const orderId = result.insertId;
 
-        // 2. Guardar Detalles (Iteramos el carrito)
-        const cartItems = req.session.cart.map(item => [orderId, item.id, item.quantity, item.price]);
-        db.query('INSERT INTO order_details (order_id, product_id, quantity, price) VALUES ?', [cartItems], (err) => {
-            if (err) throw err;
-            
-            // Vaciar carrito
-            req.session.cart = [];
-            
-            // Redirigir a historial o ticket
-            res.redirect('/history'); 
+        // 2. Guardar Detalles
+        Const cartItems = req.session.cart.map(item => [orderId, item.id, item.quantity, item.price]);
+        Db.query(‘INSERT INTO order_details (order_id, product_id, quantity, price) VALUES ¿’, [cartItems], (err) => {
+            If (err) throw err;
+            Req.session.cart = []; // Vaciar carrito
+            Res.redirect(‘/history’); 
         });
     });
 });
 
 // HISTORIAL
-app.get('/history', (req, res) => {
-    if (!req.session.user) return res.redirect('/login');
-    
-    // Consulta JOIN compleja para traer todo
-    const sql = 'SELECT * FROM orders WHERE user_id = ? ORDER BY date DESC';
-    db.query(sql, [req.session.user.id], (err, orders) => {
-        res.render('history', { orders });
+App.get(‘/history’, (req, res) => {
+    If (¡req.session.user) return res.redirect(‘/login’);
+    Const sql = ‘SELECT * FROM orders WHERE user_id = ¿ ORDER BY date DESC’;
+    Db.query(sql, [req.session.user.id], (err, orders) => {
+        Res.render(‘history’, { orders });
     });
 });
 
-// GENERAR PDF (Ticket)
-app.get('/invoice/:id', (req, res) => {
-    if (!req.session.user) return res.redirect('/login');
-    const orderId = req.params.id;
+// GENERAR PDF
+App.get(‘/invoice/:id’, (req, res) => {
+    If (¡req.session.user) return res.redirect(‘/login’);
+    Const orderId = req.params.id;
+    Const sqlOrder = ‘SELECT * FROM orders WHERE id = ¿ AND user_id = ¿’;
+    Const sqlDetails = `SELECT od.*, p.name FROM order_details od JOIN products p ON od.product_id = p.id WHERE od.order_id = ¿`;
 
-    // Obtener datos de la orden y sus productos
-    const sqlOrder = 'SELECT * FROM orders WHERE id = ? AND user_id = ?';
-    const sqlDetails = `
-        SELECT od.*, p.name 
-        FROM order_details od 
-        JOIN products p ON od.product_id = p.id 
-        WHERE od.order_id = ?`;
-
-    db.query(sqlOrder, [orderId, req.session.user.id], (err, orderResult) => {
-        if (orderResult.length === 0) return res.send("Orden no encontrada");
-        
-        db.query(sqlDetails, [orderId], (err, detailsResult) => {
-            
-            // CREAR PDF
-            const doc = new PDFDocument();
-            const filename = `Ticket_Orden_${orderId}.pdf`;
-
-            res.setHeader('Content-disposition', 'attachment; filename="' + filename + '"');
-            res.setHeader('Content-type', 'application/pdf');
-
-            doc.pipe(res);
-
-            // Contenido PDF
-            doc.fontSize(25).text('TechZone - Comprobante de Compra', { align: 'center' });
-            doc.moveDown();
-            doc.fontSize(12).text(`Fecha: ${new Date(orderResult[0].date).toLocaleString()}`);
-            doc.text(`Cliente: ${req.session.user.name}`);
-            doc.text(`Orden ID: ${orderId}`);
-            doc.moveDown();
-            doc.text('-------------------------------------------------------');
-            
+    Db.query(sqlOrder, [orderId, req.session.user.id], (err, orderResult) => {
+        If (orderResult.length === 0) return res.send(“Orden no encontrada”);
+        Db.query(sqlDetails, [orderId], (err, detailsResult) => {
+            Const doc = new PDFDocument();
+            Const filename = `Ticket_Orden_${orderId}.pdf`;
+            Res.setHeader(‘Content-disposition’, ‘attachment; filename=”’ + filename + ‘”’);
+            Res.setHeader(‘Content-type’, ‘application/pdf’);
+            Doc.pipe(res);
+            Doc.fontSize(25).text(‘TechZone – Comprobante’, { align: ‘center’ });
+            Doc.moveDown();
+            Doc.fontSize(12).text(`Cliente: ${req.session.user.name}`);
+            Doc.text(`Total: $${orderResult[0].total}`);
+            Doc.moveDown();
             detailsResult.forEach(item => {
                 doc.text(`${item.quantity} x ${item.name} - $${item.price}`);
             });
-            
-            doc.text('-------------------------------------------------------');
-            doc.fontSize(16).text(`TOTAL PAGADO: $${orderResult[0].total}`, { align: 'right' });
-            
-            doc.end();
+            Doc.end();
         });
     });
 });
 
-
-app.listen(3000, () => console.log('Servidor en http://localhost:3000'));
-
+// PUERTO (Importante para Render)
+Const PORT = process.env.PORT || 3000;
+App.listen(PORT, () => console.log(`Servidor corriendo en puerto ${PORT}`));
